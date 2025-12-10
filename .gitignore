@@ -1,3 +1,34 @@
+# Python-related
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+env/
+*.env
+
+# VSCode settings (if using VSCode)
+.vscode/
+
+# IDE-specific files (for example, for PyCharm, IntelliJ)
+.idea/
+
+# Mac system files
+.DS_Store
+
+# Windows system files
+Thumbs.db
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Log files
+*.log
+
+# Temporary files
+*.swp
+
+
 # Python
 __pycache__/
 *.pyc
