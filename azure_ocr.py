@@ -89,22 +89,24 @@ def analyze_layout_rest(file_path: str, max_attempts: int = MAX_POLL_ATTEMPTS) -
     
     poll_headers = {"Ocp-Apim-Subscription-Key": KEY}
     
-    for attempt in range(max_attempts):
+    # Use while loop so 429/503/404 retries don't count toward max_attempts
+    attempt = 0
+    while attempt < max_attempts:
         try:
             poll = requests.get(operation_url, headers=poll_headers)
             
-            # Handle throttling (429) or service unavailable (503)
+            # Handle throttling (429) or service unavailable (503) - DON'T count as attempt
             if poll.status_code in [429, 503]:
                 retry_after = int(poll.headers.get('retry-after', 3)) * 1000
-                print(f"   ⚠️  Rate limited ({poll.status_code}), waiting {retry_after}ms...")
+                print(f"   ⚠️  Rate limited ({poll.status_code}), waiting {retry_after}ms... (not counted)")
                 time.sleep(retry_after / 1000)
-                continue  # Don't count as attempt
+                continue  # Don't increment attempt
             
-            # Handle "not ready yet" (404)
+            # Handle "not ready yet" (404) - DON'T count as attempt
             if poll.status_code == 404:
-                print(f"   ⏳ Operation not ready yet, waiting...")
+                print(f"   ⏳ Operation not ready yet, waiting... (not counted)")
                 time.sleep(INITIAL_WAIT_MS / 1000)
-                continue  # Don't count as attempt
+                continue  # Don't increment attempt
             
             poll.raise_for_status()
             result = poll.json()
@@ -126,14 +128,16 @@ def analyze_layout_rest(file_path: str, max_attempts: int = MAX_POLL_ATTEMPTS) -
                 error_msg = result.get("error", {}).get("message", "Unknown error")
                 raise RuntimeError(f"❌ Document analysis failed: {error_msg}")
             
-            # Still running - wait with exponential backoff
+            # Still running - wait with exponential backoff, INCREMENT attempt
             wait_time = min(INITIAL_WAIT_MS * (BACKOFF_MULTIPLIER ** attempt), MAX_WAIT_MS)
             print(f"   Attempt {attempt + 1}/{max_attempts}: Status = {status}, waiting {int(wait_time)}ms...")
             time.sleep(wait_time / 1000)
+            attempt += 1  # Only increment for actual polling attempts
             
         except requests.exceptions.RequestException as e:
             print(f"   ⚠️  Poll attempt {attempt + 1} error: {e}")
-            if attempt < max_attempts - 1:
+            attempt += 1  # Count errors as attempts
+            if attempt < max_attempts:
                 time.sleep(3)  # Wait before retry on error
     
     raise RuntimeError(f"❌ Polling timeout after {max_attempts} attempts")

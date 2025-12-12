@@ -171,8 +171,11 @@ class EnhancedChunker:
         
         # Check if left column looks like labels (short, text-like)
         label_like_count = 0
+        non_empty_rows = 0  # Count only rows with non-empty first column
+        
         for row in grid:
             if row[0]:
+                non_empty_rows += 1
                 left_cell = row[0].strip()
                 # Label heuristics: short, mostly letters, may end with ':'
                 if len(left_cell) < 40 and len(left_cell.split()) <= 5:
@@ -181,8 +184,11 @@ class EnhancedChunker:
                     if alpha_count > len(left_cell) * 0.3:
                         label_like_count += 1
         
-        # If most rows have label-like left cells, it's a KV table
-        return label_like_count >= row_count * 0.6
+        # If most NON-EMPTY rows have label-like left cells, it's a KV table
+        # Fix: compare against non_empty_rows, not total row_count
+        if non_empty_rows < 2:
+            return False
+        return label_like_count >= non_empty_rows * 0.6
     
     def _extract_table_chunks(self, tables: List[Dict], filename: str, pages: List[Dict]) -> List[EnhancedChunk]:
         """

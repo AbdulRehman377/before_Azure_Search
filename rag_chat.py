@@ -183,6 +183,10 @@ class HybridSearcher:
         self.vectorstore = vectorstore
         self.texts = [c["text"] for c in chunks]
         
+        # Build text-to-index map for reliable chunk matching
+        # This fixes the chunk_index mismatch bug when ENHANCED_CHUNKS.json lacks chunk_index
+        self.text_to_idx = {text: i for i, text in enumerate(self.texts)}
+        
         # Build BM25 index
         if BM25_AVAILABLE:
             tokenized = [self._tokenize(text) for text in self.texts]
@@ -212,8 +216,10 @@ class HybridSearcher:
         semantic_scores = {}
         for doc, score in semantic_results:
             similarity = 1 / (1 + score)  # Bounded transform: distance to similarity (safe for any distance)
-            chunk_idx = doc.metadata.get("chunk_index", -1)
-            semantic_scores[chunk_idx] = similarity
+            # Use text content to find index (fixes chunk_index mismatch bug)
+            chunk_idx = self.text_to_idx.get(doc.page_content, -1)
+            if chunk_idx >= 0:
+                semantic_scores[chunk_idx] = similarity
         
         # Get BM25 scores
         bm25_scores = {}
